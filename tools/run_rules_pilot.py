@@ -44,7 +44,12 @@ def exact_score(expected, response):
 
 def check_endpoint(endpoint, key):
     parsed = urllib.parse.urlparse(endpoint)
-    local = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+    # The only non-loopback private exception is the hard-coded model service
+    # inside the Docker --internal network. It cannot be selected via an API URL.
+    local = parsed.hostname in ("localhost", "127.0.0.1", "::1") or (
+        parsed.hostname == "af-model" and
+        os.getenv("AGENTFOUNDRY_ISOLATED_DOCKER") == "af-private"
+    )
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise ValueError("endpoint must be an http(s) URL")
     if not local and parsed.scheme != "https":
@@ -87,8 +92,12 @@ def validate_cases(cases):
 def run(args):
     key = os.getenv("LLM_API_KEY", "")
     parsed = check_endpoint(args.endpoint, key)
-    if args.mode == "paired" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
-        raise ValueError("private skill comparisons require a loopback model endpoint")
+    private_safe = parsed.hostname in ("localhost", "127.0.0.1", "::1") or (
+        parsed.hostname == "af-model" and
+        os.getenv("AGENTFOUNDRY_ISOLATED_DOCKER") == "af-private"
+    )
+    if args.mode == "paired" and not private_safe:
+        raise ValueError("private skill comparisons require a loopback model or isolated Docker service")
     cases = json.loads(CASE_PATH.read_text(encoding="utf-8"))
     validate_cases(cases)
     if args.repetitions not in range(1, 11):
