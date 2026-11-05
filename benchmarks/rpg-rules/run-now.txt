@@ -1,0 +1,1 @@
+Launch auto mode (three repetitions): run paired local-only inference if AGENTFOUNDRY_SKILL_B64 is present; otherwise run additional baseline diagnostics. Never upload the private skill.
