@@ -11,11 +11,14 @@ Each trial independently submits the same scenario, initial state, action and re
 
 ## Run without paid inference
 
-GitHub Actions: **Actions → Rules pilot → Run workflow**, then select:
+GitHub Actions: **Actions → Rules pilot (real local inference) → Run workflow**, then select:
 - `baseline` to check the actual open-source model and hosted runner without disclosing a skill.
+- `auto` to choose paired only when the private skill secret is already configured, otherwise collect baseline diagnostics.
 - `paired` only after adding repository secret `AGENTFOUNDRY_SKILL_B64`, which must hold the base64-encoded UTF-8 skill text (entire standalone SKILL.md).
 
-The workflow uses a CPU `llama.cpp` server and public **Qwen2.5-Coder-1.5B-Instruct-GGUF Q4_K_M** model, with *no inference API key* or paid external service. GitHub-hosted standard runners for public repositories are subject to GitHub's current policies and limits. This small model may fail many complex cases and is not representative of Claude or a production coding agent.
+The workflow downloads public weights before reading secrets, then uses a pinned CPU `llama.cpp` image on an outbound-network-isolated internal Docker bridge, with a localhost-only API and the public **Qwen2.5-Coder-1.5B-Instruct-GGUF Q4_K_M** model. It uses *no inference API key* or paid external service. The private skill remains on the ephemeral runner, not mounted in Docker. See [SECURITY.md](../../SECURITY.md). GitHub-hosted standard runners for public repositories are subject to GitHub's current policies and limits. This small model may fail many complex cases and is not representative of Claude or a production coding agent.
+
+The main-branch `benchmarks/rpg-rules/run-now.txt` trigger performs a three-repetition `auto` run, regardless of whether you have configured the secret.
 
 Never put the commercial skill contents into public repository files, an Actions input, step logs or a public issue. The workflow checks that the secret is present before a paired run. Artifacts contain scores, model-output hashes, case IDs and timings **only**; private prompts and raw model outputs are excluded.
 
