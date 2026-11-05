@@ -34,8 +34,8 @@ jobs:
       REPETITIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.repetitions || '3' }}
       MODEL: qwen-coder-1.5b
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
       - name: Verify benchmark and score checks
@@ -89,7 +89,7 @@ jobs:
             --read-only --tmpfs /tmp:rw,size=128m \
             --security-opt no-new-privileges --cap-drop ALL \
             -v "$RUNNER_TEMP/agentfoundry-model/model.gguf:/models/model.gguf:ro" \
-            ghcr.io/ggml-org/llama.cpp:server \
+            ghcr.io/ggml-org/llama.cpp@sha256:c0a11067c72bb1eb330b8bddbf9869274c195e596bf4fae55fd527102e644b85 \
             -m /models/model.gguf \
             -a "$MODEL" -c 4096 -t 2 -np 1 \
             --host 0.0.0.0 --port 8080
@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload privacy-safe score files
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agentfoundry-rules-pilot-${{ github.run_id }}
           path: |
