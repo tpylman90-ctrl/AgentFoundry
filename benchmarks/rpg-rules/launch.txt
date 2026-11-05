@@ -1,0 +1,2 @@
+Initial baseline-only CPU model smoke run on first AgentFoundry setup.
+Paired runs must be manually dispatched after the private skill secret is configured.
