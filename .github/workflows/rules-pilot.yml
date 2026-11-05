@@ -118,6 +118,7 @@ jobs:
             extra+=(--skill-file /private/SKILL.md)
           fi
           docker run --rm --name af-evaluator --network af-private --cpus 2 \
+            --user "$(id -u):$(id -g)" \
             --read-only --tmpfs /tmp:rw,size=128m \
             --security-opt no-new-privileges --cap-drop ALL \
             --env AGENTFOUNDRY_ISOLATED_DOCKER=af-private \
