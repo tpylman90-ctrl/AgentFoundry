@@ -30,7 +30,11 @@ jobs:
           for i in $(seq 1 20); do
             response="$(curl -fsS --max-time 2 http://$container_ip:18765/ || true)"
             if [[ -n "$response" ]]; then
-              echo "PASS: runner host reaches internal Docker bridge address, no published port"
+              echo "PASS: runner reaches internal Docker bridge address"
+              docker run --rm --network af-probe-private \
+                python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c \
+                python -c 'import urllib.request; r=urllib.request.urlopen("http://af-network-probe:18765/", timeout=5); assert r.status == 200'
+              echo "PASS: peer container reaches service inside zero-egress network"
               exit 0
             fi
             sleep 2
