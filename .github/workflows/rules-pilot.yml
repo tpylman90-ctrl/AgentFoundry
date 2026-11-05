@@ -41,6 +41,16 @@ jobs:
       - name: Verify benchmark and score checks
         run: python3 -m unittest discover -s tests -v
 
+      - name: Download public model weights before accessing private skill
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/agentfoundry-model"
+          curl --fail --location --silent --show-error --retry 4 --retry-delay 3 \
+            'https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf' \
+            --output "$RUNNER_TEMP/agentfoundry-model/model.gguf"
+          test "$(stat --format='%s' "$RUNNER_TEMP/agentfoundry-model/model.gguf")" -gt 900000000
+
       - name: Resolve local-only test mode and prepare private skill
         shell: bash
         env:
@@ -71,13 +81,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/agentfoundry-hf-cache"
-          docker run -d --name af-model --network host --cpus 2 \
-            -v "$RUNNER_TEMP/agentfoundry-hf-cache:/root/.cache/huggingface" \
+          # The model container has no default route to the Internet.
+          # Only port 8080 is published to the runner's loopback interface.
+          docker network create --internal af-private
+          docker run -d --name af-model --network af-private \
+            -p 127.0.0.1:8080:8080 --cpus 2 \
+            --read-only --tmpfs /tmp:rw,size=128m \
+            --security-opt no-new-privileges --cap-drop ALL \
+            -v "$RUNNER_TEMP/agentfoundry-model/model.gguf:/models/model.gguf:ro" \
             ghcr.io/ggml-org/llama.cpp:server \
-            -hf 'Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q4_K_M' \
+            -m /models/model.gguf \
             -a "$MODEL" -c 4096 -t 2 -np 1 \
-            --host 127.0.0.1 --port 8080
+            --host 0.0.0.0 --port 8080
+          test "$(docker network inspect af-private --format '{{.Internal}}')" = "true"
           for i in $(seq 1 120); do
             if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
               echo "Model is responding to health checks."
@@ -119,4 +135,5 @@ jobs:
         shell: bash
         run: |
           docker rm -f af-model >/dev/null 2>&1 || true
+          docker network rm af-private >/dev/null 2>&1 || true
           rm -rf "$RUNNER_TEMP/agentfoundry-private"
