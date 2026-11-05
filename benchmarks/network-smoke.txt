@@ -1,1 +1,1 @@
-Public infrastructure-only Docker --internal network loopback smoke test. No models, passwords, or private prompts involved.
+Public no-secret direct isolated Docker bridge test; no published port, runner host connects to internal container IP. Retry after first localhost probe failed.
