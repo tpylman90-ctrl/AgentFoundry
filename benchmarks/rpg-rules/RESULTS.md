@@ -60,3 +60,18 @@ The workflow's auto mode explicitly selected `baseline`, confirming that `AGENTF
 The private-skill comparison is not complete. Treat a with/without delta as **unknown**, not zero or positive, until a genuine paired job succeeds.
 
 Security-hardening follow-up is documented in [SECURITY.md](../../SECURITY.md). Later runs will use a network-isolated container, pinned GitHub Actions revisions, and a pinned image digest; the two baseline runs above used the initial non-isolated local container. Both were **baseline only** and did not include private skill text.
+
+
+## Privacy-hardened baseline — isolated two-container execution
+
+**Date:** 2026-11-05 (UTC)  
+**Run:** https://github.com/tpylman90-ctrl/AgentFoundry/actions/runs/42132771026  
+**Run ID:** 42132771026  
+**Commit:** `f3970ad124978859c72b68f44d36687ca0601e9b`  
+**Result:** Completed successfully; 13 scenarios × 3 repetitions = **21/39 exact-state passes (53.8%)**.
+
+The public GGUF model weights were downloaded before loading any private skill. The pinned model server and pinned Python evaluator ran on the same Docker `--internal` bridge without published ports. A same-network health check passed. Inference, score generation, cleanup, and a privacy-safe results artifact upload all completed successfully. The artifact is named `agentfoundry-rules-pilot-42132771026`.
+
+Auto mode selected **baseline** because the optional `AGENTFOUNDRY_SKILL_B64` secret was not configured. Consequently, **no private skill was used** and **no A/B improvement can be inferred** from this run.
+
+A separate two-container network isolation probe passed: https://github.com/tpylman90-ctrl/AgentFoundry/actions/runs/42132307383. Earlier prototype runs that failed on network-port publishing or output-directory permissions are superseded by the successful isolated end-to-end run above. The failures did not expose a commercial skill, because paired mode was never entered.
