@@ -1,1 +1,1 @@
-Run privacy-hardened isolated network local Qwen CPU pipeline on 2026-11-05. Auto mode: paired only if AGENTFOUNDRY_SKILL_B64 exists, otherwise baseline. Three repetitions, no private prompts logged or published.
+Launch private-network two-container model+evaluator benchmark, pinned actions and Docker images, free hosted CPU. Auto-mode paired only if AGENTFOUNDRY_SKILL_B64 exists; otherwise repeated baseline. Private skill not logged or committed.
