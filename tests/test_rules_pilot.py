@@ -96,6 +96,18 @@ class RulePilotTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "loopback model"):
                     pilot.run(args)
 
+    def test_isolated_container_endpoint_is_explicitly_gated(self):
+        with mock.patch.dict("os.environ", {"AGENTFOUNDRY_ISOLATED_DOCKER": "af-private"}):
+            self.assertEqual(
+                pilot.check_endpoint("http://af-model:8080/v1/chat/completions", "").hostname,
+                "af-model"
+            )
+            with self.assertRaisesRegex(ValueError, "HTTPS"):
+                pilot.check_endpoint("http://other-model:8080/v1/chat/completions", "")
+        with mock.patch.dict("os.environ", {"AGENTFOUNDRY_ISOLATED_DOCKER": ""}):
+            with self.assertRaisesRegex(ValueError, "HTTPS"):
+                pilot.check_endpoint("http://af-model:8080/v1/chat/completions", "")
+
     def test_paired_requires_skill_file(self):
         with tempfile.TemporaryDirectory() as temp:
             args = SimpleNamespace(endpoint="http://localhost:8080/v1/chat/completions",
