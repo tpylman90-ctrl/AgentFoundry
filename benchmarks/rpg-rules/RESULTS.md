@@ -39,3 +39,24 @@ Results by case, as logged in the actual inference step:
 **Next gate:** Add the candidate skill's `SKILL.md` to GitHub Actions secret `AGENTFOUNDRY_SKILL_B64` (base64-encoded UTF-8). Trigger **Actions → Rules pilot (real local inference) → Run workflow → paired**. Audit paired outputs and repeat with seeds and Godot coding tasks before making marketplace performance claims.
 
 Note that public benchmark cases are visible in this repository. They are not a secure held-out dataset, and the model label is supplied by the inference endpoint rather than cryptographically attested. The completed GitHub Actions log and seven-day results artifact contain primary scoring evidence.
+
+
+## Repeated baseline — real model, three passes
+
+**Run:** https://github.com/tpylman90-ctrl/AgentFoundry/actions/runs/42130943045  
+**Run ID:** 42130943045  
+**Commit:** `714cb14b89cf581f44fde1a2bf40ee527071ef8f`  
+**Repetitions:** 3, each scenario independently asked three times.
+
+| Condition | Correct decisions and exact states | Accuracy |
+|---|---:|---:|
+| Baseline without skill | 21 / 39 | 53.8% |
+| Candidate skill | Not run — GitHub secret absent | Not measured |
+
+The logged scorer reported the same seven case successes and six failures in each of the three repetitions. This is an observed deterministic response pattern on this runner with temperature 0, **not** proof that the same score will hold on other prompts, model versions or random seeds.
+
+The workflow's auto mode explicitly selected `baseline`, confirming that `AGENTFOUNDRY_SKILL_B64` was not configured in this run. No private candidate content was passed to the model.
+
+The private-skill comparison is not complete. Treat a with/without delta as **unknown**, not zero or positive, until a genuine paired job succeeds.
+
+Security-hardening follow-up is documented in [SECURITY.md](../../SECURITY.md). Later runs will use a network-isolated container, pinned GitHub Actions revisions, and a pinned image digest; the two baseline runs above used the initial non-isolated local container. Both were **baseline only** and did not include private skill text.
