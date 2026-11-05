@@ -1,1 +1,1 @@
-Launch auto mode (three repetitions): run paired local-only inference if AGENTFOUNDRY_SKILL_B64 is present; otherwise run additional baseline diagnostics. Never upload the private skill.
+Run privacy-hardened isolated network local Qwen CPU pipeline on 2026-11-05. Auto mode: paired only if AGENTFOUNDRY_SKILL_B64 exists, otherwise baseline. Three repetitions, no private prompts logged or published.
