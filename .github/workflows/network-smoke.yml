@@ -22,17 +22,19 @@ jobs:
           docker network create --internal af-probe-private
           test "$(docker network inspect af-probe-private --format '{{.Internal}}')" = "true"
           docker run --rm -d --name af-network-probe --network af-probe-private \
-            -p 127.0.0.1:18765:18765 python:3.11-alpine \
+            python:3.11-alpine \
             python -m http.server 18765 --bind 0.0.0.0
+          container_ip="$(docker inspect af-network-probe --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')"
+          if [[ -z "$container_ip" ]]; then exit 1; fi
           response=""
           for i in $(seq 1 20); do
-            response="$(curl -fsS --max-time 2 http://127.0.0.1:18765/ || true)"
+            response="$(curl -fsS --max-time 2 http://$container_ip:18765/ || true)"
             if [[ -n "$response" ]]; then
-              echo "PASS: host loopback reaches private-network container"
+              echo "PASS: runner host reaches internal Docker bridge address, no published port"
               exit 0
             fi
             sleep 2
           done
           docker logs --tail=10 af-network-probe || true
-          echo "::error::Host localhost could not reach private network container"
+          echo "::error::Runner host could not reach internal Docker bridge container"
           exit 1
