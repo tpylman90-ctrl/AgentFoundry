@@ -12,7 +12,7 @@ AgentFoundry is public **test infrastructure**, not a public warehouse for comme
 
 ## Inference trust boundary
 
-Before the commercial skill can be loaded, the Actions runner downloads *public* GGUF model weights. Inference then starts inside a Docker container attached only to a Docker `--internal` network; its only published service is HTTP port 8080 bound to the runner's `127.0.0.1`. The container has no route to public Internet access. The model-file mount is read-only; the container is read-only and has Linux capabilities dropped. The private skill file is kept on the ephemeral runner host (mode 0600 via `umask 077`) and is not mounted into the model container. It is passed only as an HTTP prompt on loopback.
+Before the commercial skill can be loaded, the Actions runner downloads *public* GGUF model weights and the public Python evaluator image. **The model and evaluator run as separate containers on one Docker `--internal` bridge network. No container ports are published to the host or public Internet.** Both containers lack normal outbound Internet routing, use read-only filesystems and have Linux capabilities dropped. The public model file is mounted read-only into the model container. The private skill file is held on the ephemeral runner host (mode 0600 via `umask 077`) and mounted read-only into the evaluator container **only**, never into the model's filesystem. The evaluator sends the private instructions to the model's `af-model:8080` service solely over the isolated Docker bridge. The Python runner has an explicit allowlist for this exact internal service in paired mode.
 
 The workflow uses immutable git commit references for its GitHub Actions and a pinned container digest. Published artifacts retain only aggregate scores, case IDs, timings, and output SHA-256 digests; no raw prompts or generated responses. The workflow attempts to delete its ephemeral secret file during cleanup.
 
@@ -28,7 +28,7 @@ The workflow uses immutable git commit references for its GitHub Actions and a p
 ## Verification gates
 
 1. Automated unit tests pass.
-2. Container starts on isolated network; loopback health endpoint responds. A failure blocks inference.
+2. Both containers start on the same no-egress network; private-network model health endpoint responds. A failure blocks inference.
 3. Real model run completes with no transport errors and emits a signed-by-GitHub Actions run record.
 4. Paired mode is used only when the private skill is available through GitHub Secrets, with both arms on the same model under identical settings.
 5. No commercial claim of code-quality improvement without external agents making actual Godot code edits and passing engine tests.
