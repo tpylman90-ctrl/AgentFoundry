@@ -87,6 +87,8 @@ def validate_cases(cases):
 def run(args):
     key = os.getenv("LLM_API_KEY", "")
     parsed = check_endpoint(args.endpoint, key)
+    if args.mode == "paired" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+        raise ValueError("private skill comparisons require a loopback model endpoint")
     cases = json.loads(CASE_PATH.read_text(encoding="utf-8"))
     validate_cases(cases)
     if args.repetitions not in range(1, 11):
@@ -167,6 +169,11 @@ def run(args):
             percentage = f"{100 * sum(row['pass'] for row in arm_rows) / len(arm_rows):.1f}%"
         lines.append(f"| {arm} | {percentage} | {len(arm_rows)} |")
     if len(conditions) == 2 and not transport_failure:
+        lines.extend(["", "| Case | Baseline passes | Skill passes |", "|---|---:|---:|"])
+        for case in cases:
+            b = sum(row["pass"] for row in rows if row["case"] == case["id"] and row["condition"] == "baseline")
+            t = sum(row["pass"] for row in rows if row["case"] == case["id"] and row["condition"] == "skill")
+            lines.append(f"| {case['id']} | {b}/{args.repetitions} | {t}/{args.repetitions} |")
         without = [row["pass"] for row in rows if row["condition"] == "baseline"]
         with_skill = [row["pass"] for row in rows if row["condition"] == "skill"]
         delta = 100 * (sum(with_skill) - sum(without)) / len(without)
