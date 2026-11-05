@@ -1,0 +1,1 @@
+Public infrastructure-only Docker --internal network loopback smoke test. No models, passwords, or private prompts involved.
