@@ -1,0 +1,25 @@
+name: AgentFoundry checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-tests:
+    name: Verify rules pilot without model/API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile and run offline tests
+        run: |
+          python3 -m py_compile tools/run_rules_pilot.py tests/test_rules_pilot.py
+          python3 -m unittest discover -s tests -v
