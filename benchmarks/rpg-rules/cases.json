@@ -1,0 +1,235 @@
+[
+  {
+    "id": "C01",
+    "task": "E1",
+    "scenario": "Equipping a two-handed bow while holding a shield is forbidden. Auto-unequip is disabled.",
+    "state": {
+      "weapon": "short_sword",
+      "offhand": "buckler"
+    },
+    "action": "equip(longbow)",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "weapon": "short_sword",
+        "offhand": "buckler"
+      }
+    }
+  },
+  {
+    "id": "C02",
+    "task": "E1",
+    "scenario": "Owned iron_sword is one-handed and compatible with a shield.",
+    "state": {
+      "weapon": "short_sword",
+      "offhand": "buckler"
+    },
+    "action": "equip(iron_sword)",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "weapon": "iron_sword",
+        "offhand": "buckler"
+      }
+    }
+  },
+  {
+    "id": "C03",
+    "task": "E1",
+    "scenario": "A two-handed spear requires an empty offhand. The currently equipped offhand is empty; spear is owned.",
+    "state": {
+      "weapon": "dagger",
+      "offhand": "none"
+    },
+    "action": "equip(spear)",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "weapon": "spear",
+        "offhand": "none"
+      }
+    }
+  },
+  {
+    "id": "C04",
+    "task": "E1",
+    "scenario": "An item cannot be equipped unless owned. The requested mace is not owned.",
+    "state": {
+      "weapon": "sword",
+      "offhand": "none",
+      "owned_mace": 0
+    },
+    "action": "equip(mace)",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "weapon": "sword",
+        "offhand": "none",
+        "owned_mace": 0
+      }
+    }
+  },
+  {
+    "id": "C05",
+    "task": "E1",
+    "scenario": "A shield can be equipped alongside a one-handed axe; the shield is owned.",
+    "state": {
+      "weapon": "axe",
+      "offhand": "none"
+    },
+    "action": "equip(kite_shield)",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "weapon": "axe",
+        "offhand": "kite_shield"
+      }
+    }
+  },
+  {
+    "id": "C06",
+    "task": "E2",
+    "scenario": "Heal requires 6 MP. Invalid abilities consume no resources or turns.",
+    "state": {
+      "mp": 5,
+      "turns": 3,
+      "hp": 40
+    },
+    "action": "cast_heal(cost=6,restore=20)",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "mp": 5,
+        "turns": 3,
+        "hp": 40
+      }
+    }
+  },
+  {
+    "id": "C07",
+    "task": "E2",
+    "scenario": "Heal costs 6 MP and restores up to 25 HP without exceeding max_hp=100. Successful ability consumes one turn.",
+    "state": {
+      "mp": 12,
+      "turns": 3,
+      "hp": 89
+    },
+    "action": "cast_heal(cost=6,restore=25)",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "mp": 6,
+        "turns": 2,
+        "hp": 100
+      }
+    }
+  },
+  {
+    "id": "C08",
+    "task": "E2",
+    "scenario": "Healing a knocked-out unit is not permitted without a revive ability. Invalid actions cost no MP or turns.",
+    "state": {
+      "mp": 20,
+      "turns": 1,
+      "target_hp": 0
+    },
+    "action": "cast_heal(target, cost=8)",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "mp": 20,
+        "turns": 1,
+        "target_hp": 0
+      }
+    }
+  },
+  {
+    "id": "C09",
+    "task": "E2",
+    "scenario": "A potion heals 30 HP to a maximum of 100, and is not consumed on a full-health target.",
+    "state": {
+      "potions": 2,
+      "hp": 100
+    },
+    "action": "use_potion()",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "potions": 2,
+        "hp": 100
+      }
+    }
+  },
+  {
+    "id": "C10",
+    "task": "E3",
+    "scenario": "A forging recipe consumes 3 iron and 2 wood atomically to create one sword; no extra fees or gates.",
+    "state": {
+      "iron": 5,
+      "wood": 4,
+      "swords": 0
+    },
+    "action": "forge_sword()",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "iron": 2,
+        "wood": 2,
+        "swords": 1
+      }
+    }
+  },
+  {
+    "id": "C11",
+    "task": "E3",
+    "scenario": "Crafting requires 3 iron and 2 wood. If any material is insufficient, reject without changing inventory.",
+    "state": {
+      "iron": 8,
+      "wood": 1,
+      "swords": 0
+    },
+    "action": "forge_sword()",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "iron": 8,
+        "wood": 1,
+        "swords": 0
+      }
+    }
+  },
+  {
+    "id": "C12",
+    "task": "E3",
+    "scenario": "A named chest can pay its 40-gold reward only once. It is already marked claimed.",
+    "state": {
+      "gold": 50,
+      "claimed": true
+    },
+    "action": "claim_chest(reward=40)",
+    "expected": {
+      "allowed": false,
+      "state": {
+        "gold": 50,
+        "claimed": true
+      }
+    }
+  },
+  {
+    "id": "C13",
+    "task": "E3",
+    "scenario": "A named chest can pay its 40-gold reward only once. It has not been claimed yet.",
+    "state": {
+      "gold": 50,
+      "claimed": false
+    },
+    "action": "claim_chest(reward=40)",
+    "expected": {
+      "allowed": true,
+      "state": {
+        "gold": 90,
+        "claimed": true
+      }
+    }
+  }
+]
