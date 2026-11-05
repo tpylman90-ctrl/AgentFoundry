@@ -1,0 +1,112 @@
+name: Rules pilot (real local inference)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Baseline or paired with a private skill secret
+        type: choice
+        options: [baseline, paired]
+        default: baseline
+        required: true
+      repetitions:
+        description: Number of repetitions per scenario (1-3)
+        type: choice
+        options: ['1', '2', '3']
+        default: '1'
+        required: true
+  push:
+    branches: [main]
+    paths:
+      - benchmarks/rpg-rules/launch.txt
+
+permissions:
+  contents: read
+
+jobs:
+  model-pilot:
+    name: CPU Qwen RPG rules pilot
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'baseline' }}
+      REPETITIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.repetitions || '1' }}
+      MODEL: qwen-coder-1.5b
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify benchmark and score checks
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Prepare private skill only for paired mode
+        shell: bash
+        env:
+          SKILL_BASE64: ${{ secrets.AGENTFOUNDRY_SKILL_B64 }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == "paired" ]]; then
+            if [[ -z "${SKILL_BASE64:-}" ]]; then
+              echo "::error::Paired mode requires GitHub secret AGENTFOUNDRY_SKILL_B64"
+              exit 1
+            fi
+            umask 077
+            mkdir -p "$RUNNER_TEMP/agentfoundry-private"
+            printf '%s' "$SKILL_BASE64" | base64 --decode > "$RUNNER_TEMP/agentfoundry-private/SKILL.md"
+            test "$(wc -c < "$RUNNER_TEMP/agentfoundry-private/SKILL.md")" -ge 100
+          fi
+
+      - name: Start open-source model on hosted CPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/agentfoundry-hf-cache"
+          docker run -d --name af-model --network host --cpus 2 \
+            -v "$RUNNER_TEMP/agentfoundry-hf-cache:/root/.cache/huggingface" \
+            ghcr.io/ggml-org/llama.cpp:server \
+            -hf 'Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF:Q4_K_M' \
+            -a "$MODEL" -c 4096 -t 2 -np 1 \
+            --host 127.0.0.1 --port 8080
+          for i in $(seq 1 120); do
+            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
+              echo "Model is responding to health checks."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::The local model did not become ready."
+          exit 1
+
+      - name: Run independent inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ "$MODE" == "paired" ]]; then
+            extra+=(--skill-file "$RUNNER_TEMP/agentfoundry-private/SKILL.md")
+          fi
+          python3 tools/run_rules_pilot.py \
+            --endpoint http://127.0.0.1:8080/v1/chat/completions \
+            --model "$MODEL" --mode "$MODE" \
+            --repetitions "$REPETITIONS" --timeout 180 \
+            --output "$RUNNER_TEMP/af-pilot-results" "${extra[@]}"
+          cat "$RUNNER_TEMP/af-pilot-results/REPORT.md"
+
+      - name: Upload privacy-safe score files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentfoundry-rules-pilot-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/af-pilot-results/REPORT.md
+            ${{ runner.temp }}/af-pilot-results/results.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Destroy private skill and model container
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f af-model >/dev/null 2>&1 || true
+          rm -rf "$RUNNER_TEMP/agentfoundry-private"
