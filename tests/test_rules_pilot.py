@@ -86,6 +86,16 @@ class RulePilotTests(unittest.TestCase):
             report = (d / "results" / "REPORT.md").read_text()
             self.assertNotIn("Difference (skill minus baseline)", report)
 
+    def test_private_skill_never_uses_remote_endpoint(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = SimpleNamespace(endpoint="https://example.com/v1/chat/completions",
+                                   model="mock-only", mode="paired", skill_file=None,
+                                   output=str(Path(temp) / "results"), seed=4, repetitions=1,
+                                   timeout=5, max_tokens=220)
+            with mock.patch.dict("os.environ", {"LLM_API_KEY": "not_a_real_key"}):
+                with self.assertRaisesRegex(ValueError, "loopback model"):
+                    pilot.run(args)
+
     def test_paired_requires_skill_file(self):
         with tempfile.TemporaryDirectory() as temp:
             args = SimpleNamespace(endpoint="http://localhost:8080/v1/chat/completions",
