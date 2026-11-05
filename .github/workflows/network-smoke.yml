@@ -1,0 +1,38 @@
+name: Confidential inference network smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [benchmarks/network-smoke.txt]
+
+permissions:
+  contents: read
+
+jobs:
+  isolate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Start no-egress container with loopback-only port
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f af-network-probe >/dev/null 2>&1 || true; docker network rm af-probe-private >/dev/null 2>&1 || true' EXIT
+          docker network create --internal af-probe-private
+          test "$(docker network inspect af-probe-private --format '{{.Internal}}')" = "true"
+          docker run --rm -d --name af-network-probe --network af-probe-private \
+            -p 127.0.0.1:18765:18765 python:3.11-alpine \
+            python -m http.server 18765 --bind 0.0.0.0
+          response=""
+          for i in $(seq 1 20); do
+            response="$(curl -fsS --max-time 2 http://127.0.0.1:18765/ || true)"
+            if [[ -n "$response" ]]; then
+              echo "PASS: host loopback reaches private-network container"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs --tail=10 af-network-probe || true
+          echo "::error::Host localhost could not reach private network container"
+          exit 1
