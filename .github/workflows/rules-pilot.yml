@@ -50,6 +50,7 @@ jobs:
             'https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf' \
             --output "$RUNNER_TEMP/agentfoundry-model/model.gguf"
           test "$(stat --format='%s' "$RUNNER_TEMP/agentfoundry-model/model.gguf")" -gt 900000000
+          docker pull python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c
 
       - name: Resolve local-only test mode and prepare private skill
         shell: bash
@@ -66,6 +67,8 @@ jobs:
             echo "MODE=$MODE" >> "$GITHUB_ENV"
             echo "Selected evaluation condition: $MODE"
           fi
+          mkdir -p "$RUNNER_TEMP/agentfoundry-private"
+          chmod 700 "$RUNNER_TEMP/agentfoundry-private"
           if [[ "$MODE" == "paired" ]]; then
             if [[ -z "${SKILL_BASE64:-}" ]]; then
               echo "::error::Paired mode requires GitHub secret AGENTFOUNDRY_SKILL_B64"
@@ -77,46 +80,56 @@ jobs:
             test "$(wc -c < "$RUNNER_TEMP/agentfoundry-private/SKILL.md")" -ge 100
           fi
 
-      - name: Start open-source model on hosted CPU
+      - name: Start model on isolated Docker network
         shell: bash
         run: |
           set -euo pipefail
-          # The model container has no default route to the Internet.
-          # Only port 8080 is published to the runner's loopback interface.
           docker network create --internal af-private
-          docker run -d --name af-model --network af-private \
-            -p 127.0.0.1:8080:8080 --cpus 2 \
+          test "$(docker network inspect af-private --format '{{.Internal}}')" = "true"
+          docker run -d --name af-model --network af-private --cpus 2 \
             --read-only --tmpfs /tmp:rw,size=128m \
             --security-opt no-new-privileges --cap-drop ALL \
             -v "$RUNNER_TEMP/agentfoundry-model/model.gguf:/models/model.gguf:ro" \
             ghcr.io/ggml-org/llama.cpp@sha256:c0a11067c72bb1eb330b8bddbf9869274c195e596bf4fae55fd527102e644b85 \
-            -m /models/model.gguf \
-            -a "$MODEL" -c 4096 -t 2 -np 1 \
+            -m /models/model.gguf -a "$MODEL" -c 4096 -t 2 -np 1 \
             --host 0.0.0.0 --port 8080
-          test "$(docker network inspect af-private --format '{{.Internal}}')" = "true"
-          for i in $(seq 1 120); do
-            if curl --fail --silent http://127.0.0.1:8080/health >/dev/null; then
-              echo "Model is responding to health checks."
+          # An isolated evaluator can access 'af-model' on the same network.
+          # Neither container publishes ports to the runner or public Internet.
+          for i in $(seq 1 48); do
+            if docker run --rm --network af-private --read-only --cap-drop ALL \
+              python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c \
+              python -c 'import urllib.request; urllib.request.urlopen("http://af-model:8080/health", timeout=2).read()' >/dev/null 2>&1; then
+              echo "Isolated model health check: PASS"
               exit 0
             fi
-            sleep 5
+            sleep 3
           done
-          echo "::error::The local model did not become ready."
+          echo "::error::Isolated model did not respond to a same-network client"
+          docker logs --tail=25 af-model || true
           exit 1
 
-      - name: Run independent inference
+      - name: Run independent inference from isolated evaluator
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/af-pilot-results"
           extra=()
           if [[ "$MODE" == "paired" ]]; then
-            extra+=(--skill-file "$RUNNER_TEMP/agentfoundry-private/SKILL.md")
+            extra+=(--skill-file /private/SKILL.md)
           fi
-          python3 tools/run_rules_pilot.py \
-            --endpoint http://127.0.0.1:8080/v1/chat/completions \
+          docker run --rm --name af-evaluator --network af-private --cpus 2 \
+            --read-only --tmpfs /tmp:rw,size=128m \
+            --security-opt no-new-privileges --cap-drop ALL \
+            --env AGENTFOUNDRY_ISOLATED_DOCKER=af-private \
+            -v "$GITHUB_WORKSPACE:/work:ro" \
+            -v "$RUNNER_TEMP/agentfoundry-private:/private:ro" \
+            -v "$RUNNER_TEMP/af-pilot-results:/results:rw" \
+            python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c \
+            python /work/tools/run_rules_pilot.py \
+            --endpoint http://af-model:8080/v1/chat/completions \
             --model "$MODEL" --mode "$MODE" \
             --repetitions "$REPETITIONS" --timeout 180 \
-            --output "$RUNNER_TEMP/af-pilot-results" "${extra[@]}"
+            --output /results "${extra[@]}"
           cat "$RUNNER_TEMP/af-pilot-results/REPORT.md"
 
       - name: Upload privacy-safe score files
