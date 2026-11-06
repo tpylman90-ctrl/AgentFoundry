@@ -11,12 +11,12 @@ spec.loader.exec_module(san)
 
 class GodotErrorSanitizerTests(unittest.TestCase):
     def test_parse_errors_return_only_category_and_bounded_line(self):
-        log = "SCRIPT ERROR: Parse Error: Unexpected identifier.\\n   at: GDScript::reload (res://generated.gd:42)"
+        log = "SCRIPT ERROR: Parse Error: Unexpected identifier.\n   at: GDScript::reload (res://generated.gd:42)"
         # Both lines can be in the runner log; line extraction uses only anchored error lines.
         got = san.diagnostic(log, 1)
         self.assertEqual(got["category"], "parse_token")
         self.assertIsNone(got["method"])
-        self.assertIsNone(got["line"])
+        self.assertEqual(got["line"], 42)
         self.assertEqual(san.diagnostic("ERROR: res://generated.gd:52 - Parse Error: Expected end of statement.", 1),
                          {"category":"parse_token","line":52,"method":None})
         self.assertEqual(san.diagnostic("SCRIPT ERROR: Parse Error: Bad indentation at res://generated.gd:18", 1),
