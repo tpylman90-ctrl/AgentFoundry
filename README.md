@@ -7,8 +7,10 @@ AgentFoundry is the experimental development home for reusable skills that help 
 ## What this public repository contains
 
 - `benchmarks/rpg-rules/` — a small exact-state RPG rules-reasoning benchmark (equipment, skills, crafting and loot).
+- `benchmarks/godot-code/` — three independent coding briefs and actual Godot 4.5.2 engine-run behavior tests, in networkless sandboxes.
 - `tools/run_rules_pilot.py` — independent-model endpoint runner, with fresh conversations and randomized condition order.
 - `.github/workflows/checks.yml` — offline validation tests.
+- `.github/workflows/godot-code-pilot.yml` — privacy-protected code-generation comparisons using a CPU model and real Godot execution.
 - `.github/workflows/network-smoke.yml` — confidentiality-oriented Docker network verification.
 - `.github/workflows/rules-pilot.yml` — opt-in local-model runner on a GitHub-hosted CPU.
 
@@ -35,7 +37,8 @@ Use `Actions → Rules pilot (real local inference) → Run workflow` with basel
 - [x] Real baseline model inference verified; 7/13 then 21/39 on repeat.
 - [x] Independent same-model baseline/skill paired rules test executed, with privacy-safe score evidence (+15.4 percentage points, 13 unique scenarios).
 - [ ] Independently review private raw responses and verify skill version against the recorded digest.
-- [ ] Larger Godot coding-agent patch trial completed with GUT/engine validation.
+- [ ] Initial single-file Godot code-generation benchmark completed and audited (engine-executed tests; separate from autonomous coding-agent patch work).
+- [ ] Larger autonomous coding-agent patch trial completed with GUT/engine validation.
 - [ ] Android verification where relevant.
 - [ ] Marketplace rights and license reviewed; product approval requested before publishing.
 
