@@ -1,0 +1,1 @@
+Controlled private v0.3 rules evaluation on unchanged 13-case benchmark, three repetitions, CPU-only local Qwen and isolated Docker. The exact commercial skill remains in Actions secret AGENTFOUNDRY_SKILL_V03_B64 and is never committed. Verify selected mode=paired and recorded digest before claiming any result.
