@@ -17,7 +17,7 @@ on:
         required: true
   push:
     branches: [main]
-    paths: [benchmarks/godot-code/launch.txt]
+    paths: [benchmarks/godot-code/launch.txt, benchmarks/godot-code/v03-run-now.txt]
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 55
     env:
       MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
-      SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || 'v0.2' }}
+      SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || (github.event_name == 'push' && contains(github.event.head_commit.message, '[AF-V03-TRIAL]') && 'v0.3') || 'v0.2' }}
       MODEL: qwen-coder-1.5b
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
