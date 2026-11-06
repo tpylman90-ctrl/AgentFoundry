@@ -1,0 +1,1 @@
+Run the paired staged Godot 4.5.2 benchmark on Qwen2.5-Coder-1.5B with the existing encrypted v0.3.1 skill. Both conditions receive a closed-schema engine error category and bounded generated-file line, plus identical behavioral feedback, and exactly one equal-budget repair opportunity. No raw engine logs, model outputs, generated code, or private skill text in public artifacts.
