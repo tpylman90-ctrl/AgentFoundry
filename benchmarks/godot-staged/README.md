@@ -25,6 +25,12 @@ The Godot self-test uses known-correct reference implementations, and must pass 
 - You can alternatively update `benchmarks/godot-staged/run-paired.txt` with a commit message containing the exact marker `[AF-V031-TRIAL]`. The workflow will **fail closed** if the secret is missing or has a different digest, rather than silently running a baseline.
 - The output artifact has **before** and **after repair** score files; generated code and commercial prompt content are excluded.
 
+## Diagnostic-guided repair extension
+
+The separate [diagnostic experiment](DIAGNOSTIC_EXPERIMENT.md) added closed-schema Godot parser/runtime categories and optional bounded generated-file line numbers to the repair input, without altering the v0.3.1 skill package. Its first paired run completed successfully: **4/26 baseline before and after repair; 3/26 v0.3.1 before, 4/26 after repair**. This is a successful *integration test*, but **not** a measured final accuracy uplift over baseline.
+
+The original staged workflow and earlier result remain unchanged for reproducibility.
+
 ## Interpretation
 
 This is a narrow diagnostic on Qwen2.5-Coder-1.5B Q4_K_M, not proof of commercial coding-agent capability or autonomous multi-file Godot engineering. Holdout tasks, stronger free models and more runs are necessary. The v0.3.0 one-shot regression remains recorded separately, and the experimental v0.3.1 package is **not promoted** without empirical improvement.
