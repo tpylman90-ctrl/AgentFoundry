@@ -1,0 +1,1 @@
+Launch v0.3.1 staged paired benchmark with encrypted Actions secret AGENTFOUNDRY_SKILL_V031_B64. Compare same Godot coding tasks and repair budget against baseline. Verify private SHA-256 fingerprint; publish only engine pass counts and hashes, never secret/code/log contents.
