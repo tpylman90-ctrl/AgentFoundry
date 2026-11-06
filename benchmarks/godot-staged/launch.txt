@@ -1,0 +1,1 @@
+Execute baseline-only staged Godot coding pipeline: contract -> implementation -> real Godot tests -> one bounded repair -> real Godot tests. No private candidate skill needed. Verify workflow and score-only artifacts before inviting paired v0.3.1 evaluation.
