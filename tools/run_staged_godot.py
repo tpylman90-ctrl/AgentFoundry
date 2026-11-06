@@ -10,6 +10,8 @@ import re
 import sys
 from urllib.request import Request, urlopen
 
+from sanitize_godot_feedback import validate_diagnostic, TASKS, ARMS
+
 ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = "http://af-model:8080/v1/chat/completions"
 EXPECTED = "f038c76d78ed4ea2c33f1472c313881ebf27ab74f9c065440439f649a0800ee9"
@@ -19,9 +21,10 @@ PLAN = ("Extract the exact Godot 4.5 API contract: class base, signatures, "
 IMPLEMENT = ("Write one complete standalone Godot 4.5 GDScript file that "
              "starts with extends RefCounted, matches all requested methods, "
              "and handles invalid operations without mutation. Return code only.")
-REPAIR = ("Correct a Godot 4.5 GDScript implementation using the original API "
-          "and test feedback. Fix the earliest error, preserve valid code and "
-          "do not change tests. Return only a complete corrected file.")
+REPAIR = ("Correct a Godot 4.5 GDScript implementation against the exact public "
+          "API and observed engine feedback. First address any reported compiler "
+          "or runtime error category; then fix rejected behavioral assertions. "
+          "Do not alter tests or the public API. Return only complete source.")
 DOMAIN = {"equipment":"equipment", "forge":"forge", "abilities":"abilities"}
 
 def card(text, category, name):
@@ -102,6 +105,35 @@ def overlay(text,stage,domain,arm):
         return ""
     return "\n"+card(text,"STAGE",stage)+"\n"+card(text,"DOMAIN",domain)
 
+def load_diagnostics(path, mode):
+    """Read only typed allowlisted diagnostics, never free-form engine text."""
+    if not path:
+        return {}
+    raw = Path(path).read_bytes()
+    if len(raw) > 12000:
+        raise ValueError("diagnostic payload exceeded size cap")
+    payload = json.loads(raw)
+    if type(payload) is not dict or set(payload) != {"mode", "diagnostic_schema", "cases"}:
+        raise ValueError("bad diagnostic envelope")
+    if payload["mode"] != mode or type(payload["diagnostic_schema"]) is not int or payload["diagnostic_schema"] != 1:
+        raise ValueError("invalid diagnostic protocol")
+    rows = payload["cases"]
+    if type(rows) is not list:
+        raise ValueError("invalid diagnostic cases")
+    expected = {(t, a) for t in TASKS for a in (ARMS if mode == "paired" else ("baseline",))}
+    if len(rows) != len(expected):
+        raise ValueError("incorrect diagnostic count")
+    clean = {}
+    for row in rows:
+        if type(row) is not dict or set(row) != {"task", "condition", "diagnostic"}:
+            raise ValueError("untrusted diagnostic row")
+        key = (row["task"], row["condition"])
+        if key not in expected or key in clean:
+            raise ValueError("unexpected or duplicate diagnostic case")
+        clean[key] = validate_diagnostic(row["diagnostic"])
+    return clean
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--phase",choices=["prepare","repair"],required=True)
@@ -109,6 +141,7 @@ def main():
     p.add_argument("--skill-file")
     p.add_argument("--output",required=True)
     p.add_argument("--feedback")
+    p.add_argument("--diagnostics", help="Private closed-schema compiler diagnostics from the same engine pass")
     p.add_argument("--seed",type=int,default=20261105)
     p.add_argument("--timeout",type=int,default=240)
     a=p.parse_args()
@@ -155,6 +188,7 @@ def main():
         if feedback["mode"]!=a.mode or report["mode"]!=a.mode:
             raise ValueError("condition mismatch")
         rows={(x["task"],x["condition"]):x for x in feedback["cases"]}
+        diagnostics=load_diagnostics(a.diagnostics,a.mode)
         for t,arm in plan_order(items,a.mode,a.seed):
             dest=root/t["id"]/arm
             source=dest/"generated.gd"
@@ -166,6 +200,8 @@ def main():
             summary={"failed_assertion_ids":result["failed_checks"][:12],
                      "engine_exited_cleanly":bool(result["engine_exit_zero"]),
                      "all_assertions_reported":bool(result["all_checks_reported"])}
+            if diagnostics:
+                summary["compiler_diagnostic"]=diagnostics[(t["id"],arm)]
             prompt=t["brief"]+"\nAttempted code:\n"+prior[:16000]+\
                    "\nEngine test feedback:\n"+json.dumps(summary)+\
                    "\nReturn complete revised source."
@@ -184,7 +220,7 @@ def main():
                          "raw_response_sha256":hashlib.sha256(raw.encode()).hexdigest(),
                          "phase":"after_repair","repair_attempted":True})
             print("STAGED_REPAIR",t["id"],arm,status,flush=True)
-        report["protocol"]="contract_then_code_then_one_repair"
+        report["protocol"]="contract_then_code_then_one_repair_with_typed_diagnostics" if diagnostics else "contract_then_code_then_one_repair"
         (root/"generation.json").write_text(json.dumps(report,indent=2)+"\n")
 
 if __name__=="__main__":
