@@ -22,7 +22,7 @@ METHODS = frozenset({
     "configure", "equip", "unequip", "snapshot", "craft", "inventory", "cast"
 })
 SOURCE_LINE = re.compile(r"res://generated\.gd:(\d{1,5})(?!\d)", re.I)
-GDSCRIPT_RELOAD_LINE = re.compile(r"^\\s*at:\\s*GDScript::reload\\s*\\(res://generated\\.gd:(\\d{1,5})\\)", re.I)
+GDSCRIPT_RELOAD_LINE = re.compile(r"^\s*at:\s*GDScript::reload\s*\(res://generated\.gd:(\d{1,5})\)", re.I)
 MISSING_METHOD = re.compile(
     r"(?:nonexistent|non-existent|unknown)\s+(?:function|method)\s+['\"]"
     r"(configure|equip|unequip|snapshot|craft|inventory|cast)['\"]", re.I
