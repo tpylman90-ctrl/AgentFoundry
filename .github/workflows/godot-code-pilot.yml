@@ -74,6 +74,177 @@ jobs:
           echo "$output" | grep 'AF_GODOT_ENGINE_READY'
           echo "Sandboxed Godot 4.5.2: PASS"
 
+      - name: Verify known-good implementations pass all Godot assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for task in equipment forge abilities; do
+            set +e
+            output="$(timeout --kill-after=4s 12s docker run --rm --network none \
+              --cpus 1 --memory 768m --pids-limit 128 \
+              --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp:rw,size=128m \
+              --security-opt no-new-privileges --cap-drop ALL \
+              -v "$RUNNER_TEMP/af-godot/godot:/usr/local/bin/godot:ro" \
+              -v "$GITHUB_WORKSPACE/benchmarks/godot-code/project.godot:/project/project.godot:ro" \
+              -v "$GITHUB_WORKSPACE/benchmarks/godot-code/tests/$task.gd:/project/test.gd:ro" \
+              -v "$GITHUB_WORKSPACE/benchmarks/godot-code/reference/$task.gd:/project/generated.gd:ro" \
+              af-godot-engine:4.5.2 \
+              /usr/local/bin/godot --headless --path /project --script /project/test.gd 2>&1)"
+            rc=$?
+            set -e
+            if [[ "$rc" -ne 0 ]]; then
+              echo "::error::Reference implementation failed for $task"
+              exit 1
+            fi
+            REFERENCE_LOG="$output" REFERENCE_TASK="$task" python3 - <<'PY'
+          import os, re
+          prefix, count = {'equipment':('E',9),'forge':('F',8),'abilities':('A',9)}[os.environ['REFERENCE_TASK']]
+          rows = re.findall(r'^AF_TEST:([EFA][0-9]{2}):(PASS|FAIL)\s*
+        shell: bash
+        env:
+          SKILL_BASE64: ${{ secrets.AGENTFOUNDRY_SKILL_B64 }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == "auto" ]]; then
+            if [[ -n "${SKILL_BASE64:-}" ]]; then
+              MODE=paired
+            else
+              MODE=baseline
+            fi
+            echo "MODE=$MODE" >> "$GITHUB_ENV"
+          fi
+          mkdir -p "$RUNNER_TEMP/af-code-private"
+          chmod 700 "$RUNNER_TEMP/af-code-private"
+          if [[ "$MODE" == "paired" ]]; then
+            if [[ -z "${SKILL_BASE64:-}" ]]; then
+              echo "::error::Paired mode requires AGENTFOUNDRY_SKILL_B64 in Actions secrets"
+              exit 1
+            fi
+            umask 077
+            printf '%s' "$SKILL_BASE64" | base64 --decode > "$RUNNER_TEMP/af-code-private/SKILL.md"
+            test "$(wc -c < "$RUNNER_TEMP/af-code-private/SKILL.md")" -ge 100
+          fi
+          echo "Evaluation mode: $MODE"
+
+      - name: Start local model with no outbound network route
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create --internal af-code-private
+          test "$(docker network inspect af-code-private --format '{{.Internal}}')" = true
+          docker run -d --name af-model --network af-code-private --cpus 2 \
+            --read-only --tmpfs /tmp:rw,size=128m \
+            --security-opt no-new-privileges --cap-drop ALL \
+            -v "$RUNNER_TEMP/af-model/model.gguf:/models/model.gguf:ro" \
+            ghcr.io/ggml-org/llama.cpp@sha256:c0a11067c72bb1eb330b8bddbf9869274c195e596bf4fae55fd527102e644b85 \
+            -m /models/model.gguf -a "$MODEL" -c 8192 -t 2 -np 1 \
+            --host 0.0.0.0 --port 8080
+          for i in $(seq 1 50); do
+            if docker run --rm --network af-code-private --read-only --cap-drop ALL \
+              python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c \
+              python -c 'import urllib.request; urllib.request.urlopen("http://af-model:8080/health",timeout=3).read()' >/dev/null 2>&1; then
+              echo "Isolated model health: PASS"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::Model unavailable"
+          docker logs --tail 20 af-model || true
+          exit 1
+
+      - name: Generate original code without publishing prompts or source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/af-code-runs"
+          args=()
+          if [[ "$MODE" == "paired" ]]; then
+            args+=(--skill-file /private/SKILL.md)
+          fi
+          docker run --rm --name af-code-generator \
+            --network af-code-private --cpus 2 \
+            --user "$(id -u):$(id -g)" \
+            --read-only --tmpfs /tmp:rw,size=128m \
+            --security-opt no-new-privileges --cap-drop ALL \
+            --env AGENTFOUNDRY_ISOLATED_DOCKER=af-code-private \
+            -v "$GITHUB_WORKSPACE:/work:ro" \
+            -v "$RUNNER_TEMP/af-code-private:/private:ro" \
+            -v "$RUNNER_TEMP/af-code-runs:/results:rw" \
+            python:3.11-alpine@sha256:8b92101d156b060d6999d3382bbe98f6851fbbf7c4bddbe3833818f3565d2b4c \
+            python /work/tools/run_godot_coding_pilot.py \
+            --mode "$MODE" --output /results "${args[@]}"
+
+      - name: Execute generated GDScript in networkless sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          for task in equipment forge abilities; do
+            for arm in baseline skill; do
+              if [[ "$MODE" == "baseline" && "$arm" == "skill" ]]; then
+                continue
+              fi
+              code="$RUNNER_TEMP/af-code-runs/$task/$arm/generated.gd"
+              out="$RUNNER_TEMP/af-code-logs/$task/$arm"
+              mkdir -p "$out"
+              if [[ ! -f "$code" ]]; then
+                echo "source_not_generated" > "$out/engine.log"
+                echo 2 > "$out/exit.txt"
+                continue
+              fi
+              set +e
+              timeout --kill-after=4s 12s docker run --rm --network none \
+                --cpus 1 --memory 768m --pids-limit 128 \
+                --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp:rw,size=128m \
+                --security-opt no-new-privileges --cap-drop ALL \
+                -v "$RUNNER_TEMP/af-godot/godot:/usr/local/bin/godot:ro" \
+                -v "$GITHUB_WORKSPACE/benchmarks/godot-code/project.godot:/project/project.godot:ro" \
+                -v "$GITHUB_WORKSPACE/benchmarks/godot-code/tests/$task.gd:/project/test.gd:ro" \
+                -v "$code:/project/generated.gd:ro" \
+                af-godot-engine:4.5.2 \
+                /usr/local/bin/godot --headless --path /project --script /project/test.gd \
+                > "$out/engine.log" 2>&1
+              rc=$?
+              set -e
+              echo "$rc" > "$out/exit.txt"
+              echo "Executed $task $arm; engine exit status recorded privately."
+            done
+          done
+
+      - name: Publish score-only report (no generated code or raw engine logs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/score_godot_coding.py \
+            --tasks benchmarks/godot-code/tasks.json \
+            --generation "$RUNNER_TEMP/af-code-runs/generation.json" \
+            --logs "$RUNNER_TEMP/af-code-logs" \
+            --output "$RUNNER_TEMP/af-code-public"
+
+      - name: Upload safe scoring evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: agentfoundry-godot-code-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/af-code-public/REPORT.md
+            ${{ runner.temp }}/af-code-public/results.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Destroy private skill, generated code, logs, and containers
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f af-model >/dev/null 2>&1 || true
+          docker network rm af-code-private >/dev/null 2>&1 || true
+          rm -rf "$RUNNER_TEMP/af-code-private" "$RUNNER_TEMP/af-code-runs" "$RUNNER_TEMP/af-code-logs"
+,os.environ['REFERENCE_LOG'],flags=re.M)
+          if sorted(rows) != sorted((f'{prefix}{i:02d}','PASS') for i in range(1,count+1)):
+              raise SystemExit('Reference Godot behavior suite did not pass')
+          print('REFERENCE_PASS', os.environ['REFERENCE_TASK'], count)
+          PY
+          done
+
       - name: Resolve conditions and install encrypted skill only on ephemeral runner
         shell: bash
         env:
