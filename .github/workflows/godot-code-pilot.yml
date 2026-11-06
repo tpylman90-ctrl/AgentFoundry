@@ -167,7 +167,7 @@ jobs:
                 continue
               fi
               set +e
-              timeout 40s docker run --rm --network none \
+              timeout --kill-after=4s 12s docker run --rm --network none \
                 --cpus 1 --memory 768m --pids-limit 128 \
                 --user "$(id -u):$(id -g)" --read-only --tmpfs /tmp:rw,size=128m \
                 --security-opt no-new-privileges --cap-drop ALL \
