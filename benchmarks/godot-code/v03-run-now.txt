@@ -1,0 +1,1 @@
+Private v0.3 Godot 4.5.2 single-shot coding pilot: same 3 public tasks, 26 engine assertions, same model/token budget as v0.2. Force paired mode, verify v0.3 SHA256, keep generated code and source prompts private, publish scores only.
