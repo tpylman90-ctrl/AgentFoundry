@@ -22,6 +22,7 @@ METHODS = frozenset({
     "configure", "equip", "unequip", "snapshot", "craft", "inventory", "cast"
 })
 SOURCE_LINE = re.compile(r"res://generated\.gd:(\d{1,5})(?!\d)", re.I)
+GDSCRIPT_RELOAD_LINE = re.compile(r"^\\s*at:\\s*GDScript::reload\\s*\\(res://generated\\.gd:(\\d{1,5})\\)", re.I)
 MISSING_METHOD = re.compile(
     r"(?:nonexistent|non-existent|unknown)\s+(?:function|method)\s+['\"]"
     r"(configure|equip|unequip|snapshot|craft|inventory|cast)['\"]", re.I
@@ -80,6 +81,11 @@ def diagnostic(raw_log: str, exit_code: int) -> dict:
             if not loc:
                 for followup in error_lines[1:4]:
                     loc = SOURCE_LINE.search(followup)
+                    if loc:
+                        break
+            if not loc:
+                for trace in text.splitlines()[:250]:
+                    loc = GDSCRIPT_RELOAD_LINE.search(trace)
                     if loc:
                         break
             if loc:
