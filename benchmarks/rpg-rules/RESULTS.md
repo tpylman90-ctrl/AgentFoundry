@@ -75,3 +75,44 @@ The public GGUF model weights were downloaded before loading any private skill. 
 Auto mode selected **baseline** because the optional `AGENTFOUNDRY_SKILL_B64` secret was not configured. Consequently, **no private skill was used** and **no A/B improvement can be inferred** from this run.
 
 A separate two-container network isolation probe passed: https://github.com/tpylman90-ctrl/AgentFoundry/actions/runs/42132307383. Earlier prototype runs that failed on network-port publishing or output-directory permissions are superseded by the successful isolated end-to-end run above. The failures did not expose a commercial skill, because paired mode was never entered.
+
+
+## First actual private-skill paired evaluation — improvement observed
+
+**Date:** 2026-11-06 (UTC; November 5 in Eastern US)  
+**Run:** https://github.com/tpylman90-ctrl/AgentFoundry/actions/runs/42135662437  
+**Run ID:** 42135662437  
+**Commit:** `f9ba8a44636a680d76b5a8d785ff769c7c20d878`  
+**Artifact:** `agentfoundry-rules-pilot-42135662437`  
+**Model:** Qwen2.5-Coder-1.5B-Instruct-GGUF (Q4_K_M; named by configured local inference service)  
+**Settings:** 13 scenarios, 3 repetitions each, temperature 0, identical model/scoring, randomized condition order.
+
+GitHub Actions explicitly printed `Selected evaluation condition: paired`. The model and evaluator ran entirely on the isolated no-egress internal Docker bridge. All job steps, including artifact upload and cleanup, completed successfully.
+
+| Condition | Exact-state passes | Accuracy |
+|---|---:|---:|
+| Generic baseline | **21 / 39** | **53.8%** |
+| With private skill | **27 / 39** | **69.2%** |
+| Observed difference | **+6 / 39** | **+15.4 percentage points** |
+
+| Case | Baseline | With skill | Outcome |
+|---|---:|---:|---|
+| C01 — two-handed weapon conflicts with shield | 0/3 | 3/3 | Improved |
+| C02 — legal weapon change | 3/3 | 3/3 | Unchanged pass |
+| C03 — two-handed spear with clear offhand | 0/3 | 0/3 | Unchanged fail |
+| C04 — unowned equipment rejection | 3/3 | 3/3 | Unchanged pass |
+| C05 — legal shield equip | 3/3 | 3/3 | Unchanged pass |
+| C06 — reject skill when MP insufficient | 0/3 | 3/3 | Improved |
+| C07 — deduct MP and cap healing | 0/3 | 0/3 | Unchanged fail |
+| C08 — invalid healing on knocked-out target | 3/3 | 3/3 | Unchanged pass |
+| C09 — refuse full-health potion use | 0/3 | 0/3 | Unchanged fail |
+| C10 — atomic successful crafting | 3/3 | 3/3 | Unchanged pass |
+| C11 — reject insufficient crafting materials | 3/3 | 3/3 | Unchanged pass |
+| C12 — duplicate reward rejection | 3/3 | 3/3 | Unchanged pass |
+| C13 — valid first reward claim | 0/3 | 0/3 | Unchanged fail |
+
+**Interpretation:** The with-skill condition corrected 2 of 13 unique scenarios, consistently across 3 deterministic repetitions; no case regressed. The 39 individual scores should *not* be presented as 39 independent tasks. This small public pilot is subject to task-selection bias, public-answer-key exposure, and model-specific behavior. It demonstrates a measurable **rules-reasoning** improvement only, not autonomous Godot code quality, Claude Code gains, marketplace readiness, or statistical generalization.
+
+**Confidentiality:** The private skill was sourced from a GitHub Actions secret in the runner and not committed to the repository; the published artifact contains scores and hashes, not the skill prompt or raw replies. The secret's contents cannot be independently established from the public workflow log, so this evidence validates the configured secret treatment, not the exact unpublished skill version by inspection.
+
+**Next gate:** Run independent coding-agent implementation exercises and Godot/GUT tests in disposable projects, with a larger preregistered held-out scenario set, before making commercial reliability claims.
