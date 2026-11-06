@@ -1,1 +1,1 @@
-Final isolated two-container three-repeat auto run after evaluator UID/mount fix. Public model and workflow pinned. Paired only if private Actions skill secret exists; otherwise baseline. No public skill disclosure.
+Secure paired benchmark attempt — 2026-11-05. Run automatic 3-repeat evaluation using the encrypted AGENTFOUNDRY_SKILL_B64 Actions secret if present. The model and evaluator stay on an isolated no-egress Docker network, with only privacy-safe scores uploaded. If the secret is not available, perform baseline only and do not claim an A/B result.
