@@ -30,5 +30,35 @@ class StagedPromptTests(unittest.TestCase):
         self.assertEqual(s.skill("baseline","/not-used"),"")
         with self.assertRaises(ValueError):
             s.skill("paired",None)
+
+    def test_closed_schema_compiler_feedback_rejects_raw_text(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as temp:
+            from pathlib import Path
+            path = Path(temp) / "sanitized.json"
+            rows = [
+                {"task": task, "condition": arm,
+                 "diagnostic": {"category": "parse_token", "line": 21, "method": None}}
+                for task in ("equipment", "forge", "abilities")
+                for arm in ("baseline", "skill")
+            ]
+            payload = {"mode": "paired", "diagnostic_schema": 1, "cases": rows}
+            path.write_text(json.dumps(payload))
+            self.assertEqual(len(s.load_diagnostics(str(path), "paired")), 6)
+            payload["cases"][0]["diagnostic"]["raw"] = "LEAK_PRIVATE_SKILL"
+            path.write_text(json.dumps(payload))
+            with self.assertRaises(ValueError):
+                s.load_diagnostics(str(path), "paired")
+            payload["cases"][0]["diagnostic"].pop("raw")
+            payload["cases"][0]["diagnostic"]["line"] = "21; LEAK_PRIVATE_SKILL"
+            path.write_text(json.dumps(payload))
+            with self.assertRaises(ValueError):
+                s.load_diagnostics(str(path), "paired")
+            payload["cases"][0]["diagnostic"]["line"] = 21
+            payload["cases"].append(payload["cases"][0])
+            path.write_text(json.dumps(payload))
+            with self.assertRaises(ValueError):
+                s.load_diagnostics(str(path), "paired")
+
     def test_no_remote_endpoint(self):
         self.assertEqual(s.ENDPOINT,"http://af-model:8080/v1/chat/completions")
