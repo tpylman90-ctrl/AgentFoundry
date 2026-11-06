@@ -20,6 +20,12 @@ Inference uses two containers on an outbound-network-isolated Docker bridge. The
 - A model can return invalid code. Those tasks count as zero instead of being omitted.
 - The generated code is **not** uploaded as a public Actions artifact because it might echo private instructions. Code hashes are included for reproducibility, but external auditors cannot inspect the raw responses.
 
+## Verified first-run evidence
+
+The first completed private paired coding trial is documented in [RESULTS.md](RESULTS.md): **0/26** assertions without the specialized skill versus **4/26** with it, entirely from the treatment equipment implementation. The known-correct reference scripts passed **26/26** in an independent real Godot run. The score is a small preliminary signal and does not show usable complete RPG features.
+
+To protect against broken tests, subsequent coding pilots run the complete known-correct reference suite **before** the private skill is loaded. Any reference failure aborts the run.
+
 ## Running
 
 From Actions, select **Godot code pilot → Run workflow**, choosing `auto` to use the private skill when present or `paired` to require it. Push changes to `benchmarks/godot-code/launch.txt` to invoke the 3-task paired auto workflow. The runner builds the engine sandbox and downloads weights **before** reading any private skill.
