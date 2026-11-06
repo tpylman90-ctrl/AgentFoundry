@@ -30,6 +30,10 @@ The pilot's exact-state results **do not** measure autonomous Godot code editing
 Run the no-cost local check with `python3 -m unittest discover -s tests -v`.
 Use `Actions → Rules pilot (real local inference) → Run workflow` with baseline, paired or auto to request hosted inference; see [pilot setup](benchmarks/rpg-rules/README.md) first. The workflow never calls a paid inference API.
 
+## Private revision testing
+
+The v0.3 instruction package is retained outside public Git history. Our two independent test workflows now accept a private version selector (`v0.2` or `v0.3`) and separate encrypted Actions secrets. See [the revision comparison protocol](benchmarks/REVISION_COMPARISON.md) for installation, SHA-256 evidence and honest reporting. **No v0.3 independent performance gain has yet been measured.**
+
 ## Product gates
 
 - [x] Independent repository established.
