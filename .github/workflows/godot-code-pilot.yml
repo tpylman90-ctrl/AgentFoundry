@@ -9,6 +9,12 @@ on:
         options: [auto, baseline, paired]
         default: auto
         required: true
+      skill_revision:
+        description: Private skill revision for treatment arm (does not change published source)
+        type: choice
+        options: ['v0.2', 'v0.3']
+        default: 'v0.2'
+        required: true
   push:
     branches: [main]
     paths: [benchmarks/godot-code/launch.txt]
@@ -23,6 +29,7 @@ jobs:
     timeout-minutes: 55
     env:
       MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+      SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || 'v0.2' }}
       MODEL: qwen-coder-1.5b
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -110,9 +117,16 @@ jobs:
       - name: Resolve conditions and install encrypted skill only on ephemeral runner
         shell: bash
         env:
-          SKILL_BASE64: ${{ secrets.AGENTFOUNDRY_SKILL_B64 }}
+          SKILL_V02_BASE64: ${{ secrets.AGENTFOUNDRY_SKILL_B64 }}
+          SKILL_V03_BASE64: ${{ secrets.AGENTFOUNDRY_SKILL_V03_B64 }}
         run: |
           set -euo pipefail
+          case "$SKILL_REVISION" in
+            v0.2) SKILL_BASE64="${SKILL_V02_BASE64:-}" ;;
+            v0.3) SKILL_BASE64="${SKILL_V03_BASE64:-}" ;;
+            *) echo "::error::Unknown skill revision" && exit 1 ;;
+          esac
+          echo "Selected private skill revision: $SKILL_REVISION"
           if [[ "$MODE" == "auto" ]]; then
             if [[ -n "${SKILL_BASE64:-}" ]]; then
               MODE=paired
@@ -125,7 +139,7 @@ jobs:
           chmod 700 "$RUNNER_TEMP/af-code-private"
           if [[ "$MODE" == "paired" ]]; then
             if [[ -z "${SKILL_BASE64:-}" ]]; then
-              echo "::error::Paired mode requires AGENTFOUNDRY_SKILL_B64 in Actions secrets"
+                echo "::error::Paired mode requires the Actions secret selected for $SKILL_REVISION"
               exit 1
             fi
             umask 077
