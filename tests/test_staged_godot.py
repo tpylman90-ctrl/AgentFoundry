@@ -1,8 +1,10 @@
 import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
 spec=importlib.util.spec_from_file_location("staged",ROOT/"tools"/"run_staged_godot.py")
 s=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(s)
