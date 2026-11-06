@@ -1,0 +1,20 @@
+[
+  {
+    "id": "equipment",
+    "label": "Equipment compatibility and atomic equip",
+    "checks": 9,
+    "brief": "Create exactly one standalone Godot 4.5 GDScript file. It must start with \"extends RefCounted\" and have no class_name, imports, external assets, print calls or network/file access. Implement:\n- configure(definitions: Dictionary, quantities: Dictionary) -> void; replace internal state, starting empty slots \"weapon\" and \"offhand\" both containing the string \"none\".\n- equip(item_id: String) -> bool; reject missing/zero quantity and missing definitions, reject incompatible hands without changing state, otherwise assign item to the specified slot.\n- unequip(slot: String) -> bool; only \"weapon\"/\"offhand\" are valid; clear a filled slot to \"none\"; reject invalid or empty slots.\n- snapshot() -> Dictionary; return {\"weapon\": current_id, \"offhand\": current_id}.\nDefinitions are dictionaries like {\"sword\":{\"slot\":\"weapon\",\"two_handed\":false},\"greatsword\":{\"slot\":\"weapon\",\"two_handed\":true},\"shield\":{\"slot\":\"offhand\"}}.\nWhen a two_handed weapon is equipped, the offhand must be empty; when an offhand is equipped, the current weapon must not be two_handed. Never auto-unequip. An invalid action must not change either slot. Use only Godot 4-compatible GDScript. Output only the complete script, no explanations."
+  },
+  {
+    "id": "forge",
+    "label": "Transactional recipe crafting with region gates",
+    "checks": 8,
+    "brief": "Create exactly one standalone Godot 4.5 GDScript file. It must start with \"extends RefCounted\" and have no class_name, imports, external assets, print calls or network/file access. Implement:\n- configure(stock: Dictionary, recipes: Dictionary, unlocked_regions: Array) -> void; initialize internal state as deep copies.\n- craft(recipe_id: String) -> bool; reject unknown recipes, locked regions and insufficient materials WITHOUT changing stock. On success, subtract every required material and add exactly one output item, atomically.\n- inventory() -> Dictionary; return a deep copy of current stock.\nA recipe record is {\"region\":\"forest\",\"materials\":{\"iron\":3,\"wood\":2},\"output\":\"sword\"}. A region is unlocked iff its exact string appears in unlocked_regions. Missing items have quantity 0. Never allow a negative stock. A recipe with zero or negative material requirements is invalid and must be rejected unchanged. No external state or persistence. Use only Godot 4-compatible GDScript. Output only the complete script, no explanations."
+  },
+  {
+    "id": "abilities",
+    "label": "Battle healing, cleansing and revival with resource accounting",
+    "checks": 9,
+    "brief": "Create exactly one standalone Godot 4.5 GDScript file. It must start with \"extends RefCounted\" and have no class_name, imports, external assets, print calls or network/file access. Implement:\n- configure(caster: Dictionary, allies: Array) -> void; copy inputs deeply; caster has {\"mp\":20,\"turns\":3}, allies are dictionaries like {\"hp\":40,\"max_hp\":100,\"poisoned\":false}.\n- cast(kind: String, target_index: int) -> bool.\n- snapshot() -> Dictionary; return a deep copy {\"caster\": caster_data, \"allies\": ally_data}.\nExactly these three commands:\n\"heal\": costs 6 MP and 1 turn; adds 20 HP capped at max_hp; target must be alive (hp>0) and below max_hp.\n\"cleanse\": costs 4 MP and 1 turn; clears poisoned on a living poisoned target.\n\"revive\": costs 12 MP and 1 turn; if target hp=0, sets hp=10 (capped at max_hp) and poisoned=false.\nReject unknown commands, negative/out-of-range targets, insufficient MP, no turns, or commands that would make no change. Invalid casts return false with no MP, turns or ally-state changes. Use only Godot 4-compatible GDScript. Output only the complete script, no explanations."
+  }
+]
