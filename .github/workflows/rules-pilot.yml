@@ -26,6 +26,7 @@ on:
     paths:
       - benchmarks/rpg-rules/launch.txt
       - benchmarks/rpg-rules/run-now.txt
+      - benchmarks/rpg-rules/v03-run-now.txt
 
 permissions:
   contents: read
@@ -38,7 +39,7 @@ jobs:
     env:
       MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
       REPETITIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.repetitions || '3' }}
-      SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || 'v0.2' }}
+      SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || (github.event_name == 'push' && contains(github.event.head_commit.message, '[AF-V03-TRIAL]') && 'v0.3') || 'v0.2' }}
       MODEL: qwen-coder-1.5b
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
