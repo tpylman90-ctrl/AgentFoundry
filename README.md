@@ -12,7 +12,7 @@ AgentFoundry is the experimental development home for reusable skills that help 
 - `.github/workflows/network-smoke.yml` — confidentiality-oriented Docker network verification.
 - `.github/workflows/rules-pilot.yml` — opt-in local-model runner on a GitHub-hosted CPU.
 
-**See [security policy](SECURITY.md) and [verified experimental results](benchmarks/rpg-rules/RESULTS.md).** A baseline test of the open-source Qwen coding model scored 7/13 and a second run scored 21/39 over three identical repetitions. No private-skill comparison has completed. The public case set is a rules diagnostic, not a coding-agent patch benchmark.
+**See [security policy](SECURITY.md) and [verified experimental results](benchmarks/rpg-rules/RESULTS.md).** A baseline test of the open-source Qwen coding model scored 7/13 and a second run scored 21/39 over three identical repetitions. A confidential paired test subsequently scored 21/39 baseline versus 27/39 with the configured private skill (+15.4 percentage points). This is a small model-specific rules benchmark, not a Godot code-generation test. The public case set is a rules diagnostic, not a coding-agent patch benchmark.
 
 **This repository does not publish the commercial skill, Shattered Realms source, game art, signing keys, or private agent prompts.** Store skill text in a GitHub Actions secret named `AGENTFOUNDRY_SKILL_B64` for a private skill-vs-baseline evaluation. The benchmark strips the skill text from exported evidence.
 
@@ -33,7 +33,8 @@ Use `Actions → Rules pilot (real local inference) → Run workflow` with basel
 - [x] Independent repository established.
 - [x] Public benchmark tooling separated from commercial skill content.
 - [x] Real baseline model inference verified; 7/13 then 21/39 on repeat.
-- [ ] Independent same-model baseline/skill pair executed and transcripts audited (private Actions secret not yet configured).
+- [x] Independent same-model baseline/skill paired rules test executed, with privacy-safe score evidence (+15.4 percentage points, 13 unique scenarios).
+- [ ] Independently review private raw responses and verify skill version against the recorded digest.
 - [ ] Larger Godot coding-agent patch trial completed with GUT/engine validation.
 - [ ] Android verification where relevant.
 - [ ] Marketplace rights and license reviewed; product approval requested before publishing.
