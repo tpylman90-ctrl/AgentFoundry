@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'auto' }}
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event_name == 'push' && contains(github.event.head_commit.message, '[AF-V03-TRIAL]') && 'paired') || 'auto' }}
       REPETITIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.repetitions || '3' }}
       SKILL_REVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.skill_revision || (github.event_name == 'push' && contains(github.event.head_commit.message, '[AF-V03-TRIAL]') && 'v0.3') || 'v0.2' }}
       MODEL: qwen-coder-1.5b
@@ -93,6 +93,10 @@ jobs:
             mkdir -p "$RUNNER_TEMP/agentfoundry-private"
             printf '%s' "$SKILL_BASE64" | base64 --decode > "$RUNNER_TEMP/agentfoundry-private/SKILL.md"
             test "$(wc -c < "$RUNNER_TEMP/agentfoundry-private/SKILL.md")" -ge 100
+            if [[ "$SKILL_REVISION" == "v0.3" ]]; then
+              printf '%s  %s\n' '36dc36213804a1b06f82c5f9c20267b0216ecaf228a8344903bbaacd597e760f' "$RUNNER_TEMP/agentfoundry-private/SKILL.md" | sha256sum --check >/dev/null || { echo "::error::v0.3 skill digest mismatch; inference aborted"; exit 1; }
+              echo "v0.3 private skill SHA-256 validated."
+            fi
           fi
 
       - name: Start model on isolated Docker network
