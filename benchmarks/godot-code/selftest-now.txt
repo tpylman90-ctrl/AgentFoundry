@@ -1,0 +1,1 @@
+Validate known-correct GDScript reference implementations for equipment, forge and abilities against all 26 actual Godot engine tests, in a networkless sandbox. No secret and no model API.
