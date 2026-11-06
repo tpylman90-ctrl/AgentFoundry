@@ -34,6 +34,8 @@ Use `Actions → Rules pilot (real local inference) → Run workflow` with basel
 
 The v0.3 instruction package is retained outside public Git history. Our two independent test workflows now accept a private version selector (`v0.2` or `v0.3`) and separate encrypted Actions secrets. See [the revision comparison protocol](benchmarks/REVISION_COMPARISON.md) for installation, SHA-256 evidence and honest reporting. **No v0.3 independent performance gain has yet been measured.**
 
+**v0.3 test result:** The precision-sweep candidate did **not** improve the first rules or Godot coding trials. It remains experimental and is not promoted. See [v0.3 evaluation](benchmarks/V03_RESULTS.md) for verified scores and limitations.
+
 ## Product gates
 
 - [x] Independent repository established.
